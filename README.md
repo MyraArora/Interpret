@@ -343,9 +343,7 @@ Expected response:
 
 ### 4. Install the NVDA plugin
 
-[Add the exact installation procedure for the plugin's current repository layout here.]
-
-The plugin must be installed in NVDA's Global Plugins directory and NVDA must be restarted or reloaded before the keyboard shortcuts become available.
+After installing NVDA, navigate to NVDA's user configuration directory. You can open it quickly by pressing Windows + R, typing %APPDATA%\nvda, and hitting Enter. In that folder, check if a folder named scratchpad exists. If it doesn't, create it. Inside the scratchpad folder, create a subfolder named globalPlugins. Save interpret_core.py directly inside that globalPlugins folder, and get the backend Fast API running. The plugin must be installed in NVDA's Global Plugins directory, and NVDA must be restarted or reloaded before the keyboard shortcuts become available. 
 
 ### 5. Use Interpret
 
