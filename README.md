@@ -227,13 +227,7 @@ Targeted Element Deep-Dive does not require an AI inference request.
 
 ### Keeping the NVDA client lightweight
 
-NVDA runs within its own Python environment, which introduces compatibility considerations when introducing third-party dependencies.
-
-Bundling libraries such as Pillow directly into a screen-reader add-on can create installation and version-management friction.
-
-Interpret therefore uses native Windows functionality for screen capture and delegates image processing to a separate backend.
-
-This keeps the client focused on screen-reader integration while allowing the backend to use a more conventional Python dependency environment.
+NVDA runs within its own Python environment, which introduces compatibility considerations when introducing third-party dependencies. Bundling libraries such as Pillow directly into a screen-reader add-on can create installation and version-management friction. Interpret therefore uses native Windows functionality for screen capture and delegates image processing to a separate backend. This keeps the client focused on screen-reader integration while allowing the backend to use a more conventional Python dependency environment.
 
 ### Combining accessibility metadata with visual AI
 
