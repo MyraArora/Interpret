@@ -109,7 +109,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                                 "height": info["location"].height
                             }
                         })
-                    curr = getattr(curr, 'next', None)
+                curr = getattr(curr, 'next', None)
 
         return interactive_elements
 
@@ -137,7 +137,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         description="Interpret: Targeted element deep-dive."
     )
     def script_elementDeepDive(self, gesture):
-        ui.message("Analyzing focused element...")
         try:
             focus_obj = api.getFocusObject()
             if not focus_obj:
@@ -149,12 +148,32 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             role_name = controlTypes.speech.getRoleName(role) if role is not None and hasattr(controlTypes, 'speech') else str(role)
             value = getattr(focus_obj, 'value', '') or ''
             description = getattr(focus_obj, 'description', '') or ''
-            states = [controlTypes.getStateName(state) for state in focus_obj.states] if hasattr(focus_obj, 'states') else []
+            
+            states = []
+            if hasattr(focus_obj, 'states'):
+                for state in focus_obj.states:
+                    try:
+                        state_name = controlTypes.speech.getStateName(state) if hasattr(controlTypes.speech, 'getStateName') else str(state)
+                        if state_name:
+                            states.append(state_name)
+                    except Exception:
+                        pass
 
-            summary = f"Element: {name}, Role: {role_name}, States: {', '.join(states) or 'none'}. {description}"
+            value_part = f", value: {value}" if value else ""
+            states_part = f", states: {', '.join(states)}" if states else ""
+            desc_part = f" {description}" if description else ""
+
+            summary = f"{name}, {role_name}{value_part}{states_part}.{desc_part}"
+            
+            # Force speech interruption so our summary takes priority over default element speech
+            import speech
+            speech.cancelSpeech()
+            ui.message("element deepdive")
             ui.message(summary)
+            
         except Exception as e:
             ui.message("Error performing element deep-dive.")
+            print(f"Interpret Deep Dive Error: {e}")
 
     @scriptHandler.script(
         gesture="kb:NVDA+shift+g",
