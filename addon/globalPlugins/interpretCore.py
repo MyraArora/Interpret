@@ -9,8 +9,10 @@ import json
 import urllib.request
 import urllib.error
 import threading
+import speech
 
 LOCAL_BACKEND_URL = "http://127.0.0.1:8000/api/spatial-map"
+VISION_BACKEND_URL = "http://127.0.0.1:8000/api/multimodal-vision"
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
@@ -29,6 +31,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                     return
                 
                 overview = self._query_local_backend(spatial_data)
+                speech.cancelSpeech()
                 ui.message(overview)
             except Exception as e:
                 ui.message("Error generating spatial map.")
@@ -165,10 +168,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
             summary = f"{name}, {role_name}{value_part}{states_part}.{desc_part}"
             
-            # Force speech interruption so our summary takes priority over default element speech
-            import speech
             speech.cancelSpeech()
-            ui.message("element deepdive")
             ui.message(summary)
             
         except Exception as e:
@@ -180,4 +180,98 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         description="Interpret: Multimodal vision for inaccessible graphics."
     )
     def script_multimodalVision(self, gesture):
-        ui.message("Interpret: Multimodal vision analysis triggered.")
+        ui.message("Capturing active window for vision analysis...")
+        
+        def task():
+            try:
+                import ctypes
+                import ctypes.wintypes
+                import base64
+
+                user32 = ctypes.windll.user32
+                gdi32 = ctypes.windll.gdi32
+
+                hwnd = user32.GetForegroundWindow()
+                rect = ctypes.wintypes.RECT()
+                user32.GetWindowRect(hwnd, ctypes.byref(rect))
+
+                left = rect.left
+                top = rect.top
+                width = rect.right - rect.left
+                height = rect.bottom - rect.top
+
+                screen_w = user32.GetSystemMetrics(0)
+                screen_h = user32.GetSystemMetrics(1)
+                
+                if width <= 50 or height <= 50 or left < -3000 or top < -3000:
+                    left, top = 0, 0
+                    width, height = screen_w, screen_h
+
+                left = max(0, min(left, screen_w - 50))
+                top = max(0, min(top, screen_h - 50))
+                width = min(width, screen_w - left)
+                height = min(height, screen_h - top)
+
+                h_screen_dc = user32.GetDC(0)
+                h_mem_dc = gdi32.CreateCompatibleDC(h_screen_dc)
+                h_bitmap = gdi32.CreateCompatibleBitmap(h_screen_dc, width, height)
+                gdi32.SelectObject(h_mem_dc, h_bitmap)
+                gdi32.BitBlt(h_mem_dc, 0, 0, width, height, h_screen_dc, left, top, 0x00CC0020)
+
+                class BITMAPINFOHEADER(ctypes.Structure):
+                    _fields_ = [
+                        ("biSize", ctypes.wintypes.DWORD),
+                        ("biWidth", ctypes.wintypes.LONG),
+                        ("biHeight", ctypes.wintypes.LONG),
+                        ("biPlanes", ctypes.wintypes.WORD),
+                        ("biBitCount", ctypes.wintypes.WORD),
+                        ("biCompression", ctypes.wintypes.DWORD),
+                        ("biSizeImage", ctypes.wintypes.DWORD),
+                        ("biXPelsPerMeter", ctypes.wintypes.LONG),
+                        ("biYPelsPerMeter", ctypes.wintypes.LONG),
+                        ("biClrUsed", ctypes.wintypes.DWORD),
+                        ("biClrImportant", ctypes.wintypes.DWORD)
+                    ]
+
+                bih = BITMAPINFOHEADER()
+                bih.biSize = ctypes.sizeof(BITMAPINFOHEADER)
+                bih.biWidth = width
+                bih.biHeight = -height
+                bih.biPlanes = 1
+                bih.biBitCount = 24
+
+                buffer_size = width * height * 3
+                buffer = ctypes.create_string_buffer(buffer_size)
+                gdi32.GetDIBits(h_screen_dc, h_bitmap, 0, height, buffer, ctypes.byref(bih), 0)
+
+                gdi32.DeleteObject(h_bitmap)
+                gdi32.DeleteDC(h_mem_dc)
+                user32.ReleaseDC(0, h_screen_dc)
+
+                encoded_image = base64.b64encode(buffer.raw).decode('utf-8')
+
+                payload = {
+                    "image_base64": encoded_image,
+                    "width": width,
+                    "height": height
+                }
+                
+                req = urllib.request.Request(
+                    VISION_BACKEND_URL,
+                    data=json.dumps(payload).encode('utf-8'),
+                    headers={"Content-Type": "application/json"},
+                    method="POST"
+                )
+
+                with urllib.request.urlopen(req, timeout=30) as response:
+                    res_data = json.loads(response.read().decode('utf-8'))
+                    overview = res_data.get("overview", "Vision analysis complete.")
+                    
+                    speech.cancelSpeech()
+                    ui.message(overview)
+
+            except Exception as e:
+                ui.message("Error performing window vision analysis.")
+                print(f"Interpret Window Vision Error: {e}")
+
+        threading.Thread(target=task, daemon=True).start()
