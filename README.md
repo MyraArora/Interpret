@@ -451,5 +451,3 @@ The backend is intended to run locally, while AI inference is performed through 
 ---
 
 **Built by Myra Arora and Saanvi Chhabra**
-
-[View the repository](https://github.com/MyraArora/Interpret)
